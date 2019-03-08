@@ -15,13 +15,8 @@ object MainDev extends App {
   val minioRepository = MinioRepository.fromDefaultValues()
 
 
-//  val xd = Await.result(
-//    minioRepository.presignedURL("test", "test.png").runWith(Sink.head),
-//    Duration(1, TimeUnit.MINUTES)
-//  )
-
   val xd = Await.result(
-    minioRepository.listBucketContent("test").runWith(Sink.head),
+    minioRepository.presignedURL("test", "test.jpg").runWith(Sink.head),
     Duration(1, TimeUnit.MINUTES)
   )
 

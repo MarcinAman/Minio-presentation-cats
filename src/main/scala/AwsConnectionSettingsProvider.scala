@@ -10,7 +10,7 @@ object AwsConnectionSettingsProvider {
     val awsCredentials = new BasicAWSCredentials(connectionProperties.accessKey, connectionProperties.secretKey)
     val awsCredentialsProvider = new AWSStaticCredentialsProvider(awsCredentials)
     val regionProvider = new AwsRegionProvider {
-      def getRegion: String = null
+      def getRegion: String = "us-east-1"
     }
 
     S3Ext(actorSystem).settings

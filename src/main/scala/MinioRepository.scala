@@ -32,14 +32,15 @@ case class MinioRepository private(settings: S3Settings) {
     ).withAttributes(attr = attributes).map(_ => Unit)
   }
 
-  def presignedURL(bucketName: String, fileName: String): Source[String, NotUsed] = {
+  def bucketExists(bucketName: String): Source[Boolean, NotUsed] =
     S3.request(
       bucket = bucketName,
-      key = fileName,
-      method = HttpMethods.PUT
+      key = "",
+      method = HttpMethods.HEAD
     ).withAttributes(attr = attributes)
-      .map(e => e.toString())
-  }
+    .map(e => e.status.isSuccess())
+
+  def presignedURL(bucketName: String, fileName: String): Source[String, NotUsed] = ???
 
   def downloadFile(bucketName: String, fileName: String): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] = {
     S3.download(bucket = bucketName, key = fileName).withAttributes(attr = attributes)
