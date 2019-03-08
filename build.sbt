@@ -6,11 +6,8 @@ scalaVersion := "2.12.8"
 
 scalacOptions += "-Ypartial-unification"
 
-addCompilerPlugin(
-  "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
-)
-
-libraryDependencies ++= Seq("org.typelevel" %% "cats-core" % "1.6.0", "com.typesafe.akka" %% "akka-http-spray-json" % "10.1.7", "org.json4s" %% "json4s-jackson" % "3.6.5")
+libraryDependencies ++= Seq("org.typelevel" %% "cats-core" % "1.6.0", 
+  "com.typesafe.akka" %% "akka-http-spray-json" % "10.1.7", "org.json4s" %% "json4s-jackson" % "3.6.5")
 
 
 val circeVersion = "0.10.0"

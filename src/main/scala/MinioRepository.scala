@@ -9,10 +9,11 @@ import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 
 case class MinioRepository private(settings: S3Settings) {
+  private val attributes = S3Attributes.settings(settings)
 
   def listBucketContent(bucketName: String): Source[ListBucketResultContents, NotUsed] = {
     S3.listBucket(bucketName, None)
-      .withAttributes(S3Attributes.settings(settings))
+      .withAttributes(attr = attributes)
   }
 
   def createBucket(bucketName: String): Source[Unit, NotUsed] = {
@@ -20,7 +21,7 @@ case class MinioRepository private(settings: S3Settings) {
       bucket = bucketName,
       key = "",
       method = HttpMethods.PUT
-    ).map(_ => Unit)
+    ).withAttributes(attr = attributes).map(_ => Unit)
   }
 
   def deleteBucket(bucketName: String): Source[Unit, NotUsed] = {
@@ -28,17 +29,24 @@ case class MinioRepository private(settings: S3Settings) {
       bucket = bucketName,
       key = "",
       method = HttpMethods.DELETE
-    ).map(_ => Unit)
+    ).withAttributes(attr = attributes).map(_ => Unit)
   }
 
-  def presignedURL(bucketName: String, fileName: String): Source[String, NotUsed] = ???
+  def presignedURL(bucketName: String, fileName: String): Source[String, NotUsed] = {
+    S3.request(
+      bucket = bucketName,
+      key = fileName,
+      method = HttpMethods.PUT
+    ).withAttributes(attr = attributes)
+      .map(e => e.toString())
+  }
 
   def downloadFile(bucketName: String, fileName: String): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] = {
-    S3.download(bucket = bucketName, key = fileName)
+    S3.download(bucket = bucketName, key = fileName).withAttributes(attr = attributes)
   }
 
   def uploadFile(bucketName: String, fileName: String, file: Source[ByteString, NotUsed])(implicit m: Materializer): Source[MultipartUploadResult, NotUsed] = {
-    file.runWith(S3.multipartUpload(bucket = bucketName, key = fileName))
+    file.runWith(S3.multipartUpload(bucket = bucketName, key = fileName).withAttributes(attr = attributes))
   }
 }
 
@@ -53,6 +61,8 @@ object MinioRepository {
       endpoint = ConfigFactory.load().getString("minio.connection.endpoint"),
       accessKey = ConfigFactory.load().getString("minio.connection.login"),
       secretKey = ConfigFactory.load().getString("minio.connection.password"))
+
+    println(properties)
 
     fromConnection(properties)
   }
