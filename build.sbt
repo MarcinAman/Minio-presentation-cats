@@ -36,5 +36,9 @@ libraryDependencies ++= Seq(
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.5"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 
-libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-s3" % "1.0-M3"
+//libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-s3" % "1.0-M3"
+
+// https://mvnrepository.com/artifact/io.minio/minio
+libraryDependencies += "io.minio" % "minio" % "6.0.3"
+
 

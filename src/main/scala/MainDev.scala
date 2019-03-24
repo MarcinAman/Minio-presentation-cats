@@ -16,7 +16,7 @@ object MainDev extends App {
 
 
   val xd = Await.result(
-    minioRepository.presignedURL("test", "test.jpg").runWith(Sink.head),
+    minioRepository.presignedGetURL(FileLocation("test", "test.jpg")).runWith(Sink.head),
     Duration(1, TimeUnit.MINUTES)
   )
 

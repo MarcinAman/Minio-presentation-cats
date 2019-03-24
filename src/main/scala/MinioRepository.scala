@@ -1,69 +1,56 @@
+import java.io.InputStream
+
 import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpMethods
-import akka.stream.Materializer
-import akka.stream.alpakka.s3.scaladsl.S3
-import akka.stream.alpakka.s3._
 import akka.stream.scaladsl.Source
-import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import io.minio.MinioClient
 
-case class MinioRepository private(settings: S3Settings) {
-  private val attributes = S3Attributes.settings(settings)
+case class FileLocation(bucketName: String, fileName: String)
 
-  def listBucketContent(bucketName: String): Source[ListBucketResultContents, NotUsed] = {
-    S3.listBucket(bucketName, None)
-      .withAttributes(attr = attributes)
-  }
+case class MinioRepository private(minioClient: MinioClient) {
 
   def createBucket(bucketName: String): Source[Unit, NotUsed] = {
-    S3.request(
-      bucket = bucketName,
-      key = "",
-      method = HttpMethods.PUT
-    ).withAttributes(attr = attributes).map(_ => Unit)
+    Source.single{
+      minioClient.makeBucket(bucketName)
+    }
   }
 
   def deleteBucket(bucketName: String): Source[Unit, NotUsed] = {
-    S3.request(
-      bucket = bucketName,
-      key = "",
-      method = HttpMethods.DELETE
-    ).withAttributes(attr = attributes).map(_ => Unit)
+    Source.single{
+      minioClient.removeBucket(bucketName)
+    }
   }
 
-  def bucketExists(bucketName: String): Source[Boolean, NotUsed] =
-    S3.request(
-      bucket = bucketName,
-      key = "",
-      method = HttpMethods.HEAD
-    ).withAttributes(attr = attributes)
-    .map(e => e.status.isSuccess())
-
-  def presignedURL(bucketName: String, fileName: String): Source[String, NotUsed] = ???
-
-  def downloadFile(bucketName: String, fileName: String): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] = {
-    S3.download(bucket = bucketName, key = fileName).withAttributes(attr = attributes)
+  def presignedGetURL(fileLocation: FileLocation): Source[String, NotUsed] = {
+    Source.single{
+      minioClient.presignedGetObject(fileLocation.bucketName, fileLocation.fileName)
+    }
   }
 
-  def uploadFile(bucketName: String, fileName: String, file: Source[ByteString, NotUsed])(implicit m: Materializer): Source[MultipartUploadResult, NotUsed] = {
-    file.runWith(S3.multipartUpload(bucket = bucketName, key = fileName).withAttributes(attr = attributes))
+  def uploadPicture(fileLocation: FileLocation, file: InputStream, contentType: String): Source[FileLocation, NotUsed] = {
+    Source.single {
+      minioClient.putObject(fileLocation.bucketName, fileLocation.fileName, file, contentType)
+      fileLocation
+    }
   }
 }
 
 object MinioRepository {
-  def fromConnection(connectionProperties: MinioConnectionProperties)(implicit actorSystem: ActorSystem): MinioRepository = {
-    val settings = AwsConnectionSettingsProvider.getSettings(connectionProperties)
-    MinioRepository(settings)
+  def fromConnection(connectionProperties: MinioConnectionProperties): MinioRepository = {
+    val client = new MinioClient(
+      connectionProperties.endpoint,
+      connectionProperties.accessKey,
+      connectionProperties.secretKey
+    )
+
+    MinioRepository(client)
   }
 
-  def fromDefaultValues()(implicit actorSystem: ActorSystem): MinioRepository = {
+  def fromDefaultValues(): MinioRepository = {
     val properties = MinioConnectionProperties(
       endpoint = ConfigFactory.load().getString("minio.connection.endpoint"),
       accessKey = ConfigFactory.load().getString("minio.connection.login"),
       secretKey = ConfigFactory.load().getString("minio.connection.password"))
-
-    println(properties)
 
     fromConnection(properties)
   }
