@@ -5,9 +5,22 @@ import akka.stream.scaladsl.Source
 import com.typesafe.config.ConfigFactory
 import io.minio.MinioClient
 
+import scala.util.Random
+
+
 case class FileLocation(bucketName: String, fileName: String)
 
 case class MinioRepository private(minioClient: MinioClient) {
+
+  def deleteBucketWithContent(bucketName: String): Source[Unit, NotUsed] = {
+    import scala.collection.JavaConverters._
+
+    Source.single{
+      minioClient.listObjects(bucketName)
+    }.map(elements => elements.asScala.map(e => e.get().objectName()))
+      .map(elements => minioClient.removeObjects(bucketName, elements.asJava))
+  }
+
 
   def createBucket(bucketName: String): Source[Unit, NotUsed] = {
     Source.single{
@@ -31,6 +44,22 @@ case class MinioRepository private(minioClient: MinioClient) {
     Source.single {
       minioClient.putObject(fileLocation.bucketName, fileLocation.fileName, file, contentType)
       fileLocation
+    }
+  }
+
+
+
+  def randomPicturePresignedUrl(bucket: String): Source[String, NotUsed] = {
+    import scala.collection.JavaConverters._
+
+    Source.single {
+      val bucketContent = minioClient.listObjects(bucket).asScala.toSeq
+      bucketContent(Random.nextInt(bucketContent.length))
+    }.flatMapConcat {
+      element => {
+        val fileLocation = FileLocation(bucket, element.get().objectName())
+        presignedGetURL(fileLocation)
+      }
     }
   }
 }

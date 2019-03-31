@@ -1,35 +1,26 @@
-import java.io.InputStream
+import java.io.{File, FileInputStream, InputStream}
 
 import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.stream.Materializer
 import akka.stream.scaladsl.Source
-import org.json4s.DefaultFormats
-import org.json4s.jackson.JsonMethods
+import com.typesafe.config.ConfigFactory
 
-case class CatsPicture[ID, A](breeds: Seq[A], id: ID, url: String)
-case class DownloadedCatsPicture[ID, A](picture: InputStream, ref: CatsPicture[ID, A], contentType: String = "image/jpeg"){
-  def fileName: String = {
-    extension match {
-      case Some(value) => s"${ref.id}.$value"
-      case None => ref.id.toString
-    }
-  }
 
-  private def extension: Option[String] = ref.url.split(".").reverse.headOption
+case class CatsPicture[ID](picture: InputStream, id: ID, contentType: String = "image/jpeg"){
+  def fileName: String = id.toString
 }
 
 object CatsPicture {
-  private val apiURL = "https://api.thecatapi.com/v1/images/search"
+  def initialFiles(): Source[CatsPicture[String], NotUsed] = {
+    val directoryName = ConfigFactory.load().getString("pictures.directory")
 
-  def randomPicture()(implicit ac: ActorSystem, m: Materializer): Source[CatsPicture[String, Any], NotUsed] =
-    HttpUtils.getRequest(apiURL)
-      .map(fromJson)
+    val dir = new File(directoryName)
+    val contentToUpload = FileUtils.listDirectoryContent(dir)
 
-  def fromJson(json: String): CatsPicture[String, Any] = {
-    implicit val formats: DefaultFormats = DefaultFormats
+    val content = contentToUpload.map(
+      file => CatsPicture(
+        picture = new FileInputStream(file),
+        id = file.getName))
 
-    val parsedJson = JsonMethods.parse(json)(0)
-    parsedJson.extract[CatsPicture[String, Any]]
+    Source.fromIterator(() => content.toIterator)
   }
 }
